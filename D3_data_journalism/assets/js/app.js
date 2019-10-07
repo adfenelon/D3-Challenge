@@ -1,92 +1,140 @@
-// @TODO: YOUR CODE HERE!
-function BuildBellyButtonMetaData(sample) {
-    d3.json(`/metadata/${sample}`).then((data) => {
-        var PANEL = d3.select("#sample-metadata");
-        PANEL.html("");
+//@TODO: YOUR CODE HERE!
 
-        Object.entries(data).forEach(([key, value]) => {
-        PANEL.append("h6").text(`${key}: ${value}`);
-        });
+function makeResponsive() {
+  // if the SVG area isn't empty when the browser loads,
+  // remove it and replace it with a resized version of the chart
+  var svgArea = d3.select("#scatter").select("svg");
 
-        buildGuage(data.WFREQ);
+  // clear svg is not empty
+  if (!svgArea.empty()) {
+    svgArea.remove();
+  }
+
+  // SVG wrapper dimensions are determined by the current width and
+  // height of the browser window.
+  // var svgWidth = window.innerWidth;
+  // var svgHeight = window.innerHeight;
+
+  var svgWidth = 960;
+  var svgHeight = 500;
+
+  var margin = {
+    top: 20,
+    right: 40,
+    bottom: 60,
+    left: 100
+};
+
+  var width = svgWidth - margin.left - margin.right;
+  var height = svgHeight - margin.top - margin.bottom;
+
+// Create an SVG wrapper, append an SVG group that will hold our chart, and shift the latter by left and top margins.
+
+  var svg = d3.select("#scatter")
+    .append("svg")
+    .attr("width", svgWidth)
+    .attr("height", svgHeight);
+
+  var chartGroup = svg.append("g")
+    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+  // Import Data
+  d3.csv("/assets/data/data.csv").then(function(features) {
+
+    // Step 1: Parse Data/Cast as numbers
+    // ==============================
+    features.forEach(function(data) {
+      data.poverty = +data.poverty;
+      data.healthcare = +data.healthcare;
+      data.age = +data.age;
+      data.smokes = +data.smokes;
+      data.abbr = +data.abbr;
+
     });
-}
 
-// function Charts(sample) {
-//     d3.jason(`/samples/${sample}`).then(data) => {
-//         const otu_ids = data.otu_ids;
-//         const otu_labels = data.otu_labels;
-//         const sample_values = data.sample_values;
+    // Step 2: Create scale functions
+    // ==============================
+    var xLinearScale = d3.scaleLinear()
+      // .domain([8, d3.max(features, d => d.poverty)])
+      .domain([d3.min(features, d => d.poverty), d3.max(features, d => d.poverty)])
+      .range([0, width]);
 
-//         var bubblechartlayout = {
-//             margin: {t:0},
-//             hovermode: "closest",
-//             xaxis: {title: "OTU ID"}
-//         };
+    var yLinearScale = d3.scaleLinear()
+      // .domain([4, d3.max(features, d => d.healthcare)])
+      .domain([d3.min(features, d => d.healthcare), d3.max(features, d => d.healthcare)])
+      .range([height, 0]);
 
-        // var bubbleplots = [
-        //     {
-        //         x: otu_ids,
-        //         y: sample_values,
-        //         mode: "markers",
-        //         marker: {
+    // Step 3: Create axis functions
+    // ==============================
+    var bottomAxis = d3.axisBottom(xLinearScale);
+    var leftAxis = d3.axisLeft(yLinearScale);
 
-        //         }
-        //     }
-        // ]
-        
-//     };
-// };
+    // Step 4: Append Axes to the chart
+    // ==============================
+    chartGroup.append("g")
+      .attr("transform", `translate(0, ${height})`)
+      .call(bottomAxis);
 
+    chartGroup.append("g")
+      .call(leftAxis);
 
-// set the dimensions and margins of the graph
-var margin = {top: 10, right: 20, bottom: 30, left: 50},
-    width = 500 - margin.left - margin.right,
-    height = 420 - margin.top - margin.bottom;
-
-// append the svg object to the body of the page
-var svg = d3.select("#scatter")
-  .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform",
-          "translate(" + margin.left + "," + margin.top + ")");
-
-//Read the data
-d3.csv("C:\Users\fenel\D3-Challenge\D3_data_journalism\assets\data", function(data) {
-
-  // Add X axis
-  var x = d3.scaleLinear()
-    .domain([0, 10000])
-    .range([ 0, width ]);
-  svg.append("g")
-    .attr("transform", "translate(0," + height + ")")
-    .call(d3.axisBottom(x));
-
-  // Add Y axis
-  var y = d3.scaleLinear()
-    .domain([35, 90])
-    .range([ height, 0]);
-  svg.append("g")
-    .call(d3.axisLeft(y));
-
-  // Add a scale for bubble size
-  var z = d3.scaleLinear()
-    .domain([200000, 1310000000])
-    .range([ 1, 40]);
-
-  // Add dots
-  svg.append('g')
-    .selectAll("dot")
-    .data(data)
+     // Step 5: Create Circles
+    // ==============================
+    var circlesGroup = chartGroup.selectAll("circle")
+    .data(features)
     .enter()
     .append("circle")
-      .attr("cx", function (d) { return x(d.gdpPercap); } )
-      .attr("cy", function (d) { return y(d.lifeExp); } )
-      .attr("r", function (d) { return z(d.pop); } )
-      .style("fill", "#69b3a2")
-      .style("opacity", "0.7")
-      .attr("stroke", "black")
-      
-})
+    .attr("cx", d => xLinearScale(d.poverty))
+    .attr("cy", d => yLinearScale(d.healthcare))
+    // .attr("cz", d => yLinearScale(d.abbr))
+    .attr("r", "15")
+    .attr("fill", "lightblue")
+    .attr("opacity", ".5");
+
+    // Create axes labels
+    chartGroup.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0 - margin.left)
+      .attr("x", 0 - (height / 2))
+      .attr("dy", "1em")
+      .classed("axisText", true)
+      .text("Lacks Healthcare (%)");
+
+    chartGroup.append("text")
+      .attr("transform", `translate(${width / 2}, ${height + margin.top + 30})`)
+      .classed("axisText", true)
+      .text("In Poverty (%)");
+
+    // Step 6: Initialize tool tip
+    // ==============================
+    var toolTip = d3.tip()
+      .attr("id", "tooltip")
+      .offset([80, -60])
+      .html(function(d) {
+        return (`${data.abbr}<br>poverty: ${d.poverty}<br>healthcare: ${d.healthcare}`);
+      });
+
+    // Step 7: Create tooltip in the chart
+    // ==============================
+    chartGroup.call(toolTip);
+
+    // Step 8: Create event listeners to display and hide the tooltip
+    // ==============================
+    circlesGroup.on("click", function(data) {
+      toolTip.show(data, this);
+    })
+      // onmouseout event
+      .on("mouseout", function(data) {
+        toolTip.hide(data);
+      });
+
+  }).catch(function(error) {
+    console.log(error);
+  });
+}
+
+// When the browser loads, makeResponsive() is called.
+makeResponsive();
+
+// When the browser window is resized, makeResponsive() is called.
+d3.select(window).on("resize", makeResponsive);
